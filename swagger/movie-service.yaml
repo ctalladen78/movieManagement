@@ -1,0 +1,455 @@
+swagger: "2.0"
+info:
+  title: Movie Service 
+  version: "1.0"
+basePath: /v1
+security:
+  - lf-auth: []
+
+schemes:
+  - http
+
+paths:
+  /health:
+    get:
+      security: []
+      summary: Health
+      description: The health of the collaboration service
+      operationId: getHealth
+      produces:
+        - application/json
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-REQUEST-ID:
+              type: string
+              description: Request ID
+          schema:
+            $ref: "#/definitions/health"
+        "400":
+          $ref: "#/responses/invalid-request"
+        "401":
+          $ref: "#/responses/unauthorized"
+        "403":
+          $ref: "#/responses/forbidden"
+        "404":
+          $ref: "#/responses/not-found"
+      tags:
+        - health
+
+  /api-docs:
+    get:
+      security: []
+      summary: Get swagger documentation
+      description: The swagger API specification documentation
+      operationId: getDoc
+      produces:
+        - text/html
+      responses:
+        200:
+          description: Success
+      tags:
+        - doc
+
+  /movies:
+    get:
+      summary: Search Movie
+      security: []
+      description: This is movie endpoint and hence it returns all the movies.
+      operationId: searchMovies
+      produces:
+        - application/json
+      parameters:
+        - $ref: "#/parameters/pageSize"
+        - $ref: "#/parameters/offset"
+        - $ref: "#/parameters/title"
+        - $ref: "#/parameters/year"
+        - $ref: "#/parameters/rating"
+        - $ref: "#/parameters/genres-array"
+        - $ref: "#/parameters/id"
+      responses:
+        "200":
+          description: "Success"
+          headers:
+            X-REQUEST-ID:
+              type: string
+              description: Request ID
+          schema:
+            $ref: "#/definitions/movie-list"
+        "400":
+          $ref: "#/responses/invalid-request"
+        "401":
+          $ref: "#/responses/unauthorized"
+        "403":
+          $ref: "#/responses/forbidden"
+        "404":
+          $ref: "#/responses/not-found"
+      tags:
+        - movie
+
+    post:
+      summary: Add Movie
+      security: []
+      description: Creates a new movie.
+      operationId: createMovie
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          description: The movie to create
+          name: movie
+          schema:
+            $ref: "#/definitions/create-movie"
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: "#/definitions/movie"
+        "400":
+          $ref: "#/responses/invalid-request"
+        "401":
+          $ref: "#/responses/unauthorized"
+        "403":
+          $ref: "#/responses/forbidden"
+        "409":
+          $ref: "#/responses/conflict"
+      tags:
+        - movie
+
+  /movies/{id}:
+    get:
+      summary: Get movie by its id
+      security: []
+      operationId: getmovie
+      description: Returns a specific movie of logged in user based on the movie ID provided in path
+      produces:
+        - application/json
+      parameters:
+        - in: path
+          name: id
+          description: The unique ID of movie as received from DA database
+          type: string
+          required: true
+      responses:
+        "200":
+          description: "Success"
+          schema:
+            $ref: "#/definitions/movie"
+        "400":
+          $ref: "#/responses/invalid-request"
+        "401":
+          $ref: "#/responses/unauthorized"
+        "403":
+          $ref: "#/responses/forbidden"
+        "404":
+          $ref: "#/responses/not-found"
+      tags:
+        - movie
+
+
+definitions:
+  movie-list:
+    type: object
+    properties:
+      Data:
+        type: array
+        description: A list of movie objects containing the movie details
+        items:
+          $ref: "#/definitions/movie"
+      Metadata:
+        $ref: "#/definitions/list-metadata"
+
+  movie:
+    type: object
+    title: movie
+    description: movies
+    properties:
+      Title:
+        type: string
+        description: Movie Title
+        example: "Tere Naam"
+      ReleasedYear:
+        type: string
+        description: Movie Released Year
+        example: "2010"
+      Rating:
+        type: string
+        example: "1"
+        description: The movie rating
+      ID:
+        type: string
+        example: "1"
+        description: The movie ID
+      SFID:
+        type: string
+        example: "a5e0fa16-2348-4b13-be1c-61401163e95c"
+        description: The movie unique ID
+      Genres:
+        type: array
+        description: Array of Genres
+        items:
+          type: string
+        example: "['Action']"
+        x-nullable: true
+      LastModifiedAt:
+        type: string
+        description: The subscriber record last modified date/time
+        format: date-time
+        example: "2019-04-19 16:42:27"
+      CreatedAt:
+        type: string
+        description: The subscriber record created date/time
+        format: date-time
+        example: "2015-09-01 20:11:00"
+
+  create-movie:
+    type: object
+    title: createmovie
+    description: Response of create a movie
+    properties:
+      Title:
+        type: string
+        description: Movie Title
+        example: "Tere Naam"
+      ReleasedYear:
+        type: string
+        description: Movie Released Year
+        example: "2010"
+      Rating:
+        type: string
+        example: "1"
+        description: The movie rating
+      Genres:
+        type: array
+        description: Array of Genres
+        items:
+          type: string
+        example: "['Action']"
+        x-nullable: true
+      SFID:
+        type: string
+        example: "a5e0fa16-2348-4b13-be1c-61401163e95c"
+        description: The movie unique ID
+
+  list-metadata:
+    type: object
+    title: List Metadata
+    properties:
+      TotalSize:
+        type: integer
+        description: The total number results available
+        x-omitempty: false
+        format: int64
+        example: 357
+      PageSize:
+        type: integer
+        description: The number of results per page, value must be a positive integer value
+        x-omitempty: false
+        format: int64
+        example: 100
+      Offset:
+        type: integer
+        description: The page offset for fetching subsequent pages of results, value must be a non-negative integer value
+        x-omitempty: false
+        format: int64
+        example: 2
+
+  health:
+    type: object
+    title: Health
+    properties:
+      TimeStamp:
+        type: string
+        description: The date/time string timestamp for the health query response
+        example: "2019-04-19 16:42:27"
+      Status:
+        type: string
+        description: The overall status of the service
+        example: "healthy"
+        pattern: '^[\w]{4,40}$'
+      Githash:
+        type: string
+        description: A string representing the application's source code unique hash (short form)
+        example: "c0dbb85"
+        pattern: '^[\w\d]{5,40}$'
+      BuildTimeStamp:
+        type: string
+        description: The date/time string timestamp indicating when the application was built
+        example: "2019-05-28T09:52:01-0700"
+      Healths:
+        type: array
+        description: An array of health objects with their health details
+        items:
+          $ref: "#/definitions/health-status"
+
+  health-status:
+    type: object
+    properties:
+      Name:
+        type: string
+        description: The name of the health object, such as the database connection or external service
+        example: "HCDB"
+        pattern: '^[\w\d]{4,40}$'
+      Duration:
+        type: string
+        description: The response time for the health query of this health object, e.g. the database connection ping time
+        example: "14ms"
+        pattern: '^[\w\d]{4,40}$'
+      Healthy:
+        type: boolean
+        description: The health flag indicating overall health - if true health object is healthy, when false the object is not healthy
+        example: true
+      Error:
+        type: string
+        description: The health error message when the health object is not healthy
+        example: "Error connecting to database postrgresql database on host XYZ port 5432"
+        pattern: '^([\w\d\s\-\,\./]+){2,}$'
+      TimeStamp:
+        type: string
+        description: The date/time string timestamp for the health query response
+        example: "2019-05-28T09:52:01-0700"
+    title: Health Status
+
+  error-response:
+    type: object
+    title: Error Response
+    description: Standard error format
+    properties:
+      Code:
+        type: string
+        description: The code for the error response
+        example: "403"
+        pattern: '^([1-9][\d]+){1,}$'
+      Message:
+        type: string
+        description: The message for the error response
+        example: "Not authorized"
+        pattern: '^([\w\d\s\-\,\./]+){2,}$'
+
+parameters:
+  id:
+    name: id
+    description: The unique movie ID, such as "a5e0fa16-2348-4b13-be1c-61401163e95c"
+    in: query
+    type: string
+  title:
+    name: title
+    description: The movie title
+    in: query
+    type: string
+  genres-array:
+    name: genres
+    description: The movie genres array, such as ["Action" "Crime" "Love"]
+    in: query
+    required: false
+    type: array
+    items:
+      type: string
+  rating:
+    name: rating
+    description: The movie rating
+    in: query
+    type: string
+  year:
+    name: year
+    description: >-
+          The movie year.
+
+          #### <span style="color:red">$filter available</span>
+
+          e.g. `$filter=year gt 2010`
+
+    in: query
+    type: string
+  pageSize:
+    name: pageSize
+    description: The maximum number of results per page, value must be a positive integer value
+    in: query
+    type: string
+    pattern: '^[1-9][\d]*$'
+    default: "100"
+  offset:
+    name: offset
+    description: The page offset for fetching subsequent pages of results, value must be a non-negative integer value
+    in: query
+    type: string
+    pattern: "^[0-9]*$"
+    default: "0"
+  orderBy:
+    name: orderBy
+    description: The fields start and end is denoted as StartDate and EndDate of movie object to order by, default sort order is ascending
+    in: query
+    type: string
+    pattern: '^([\w\d\-]+){2,}$'
+    default: "start"
+    enum: [start, end]
+  sortDir:
+    name: sortDir
+    description: The sort direction - default sort order is 'asc' for ascending
+    in: query
+    type: string
+    enum:
+      - asc
+      - desc
+    default: asc
+  filter:
+    name: $filter
+    in: query
+    type: string
+    description: >-
+        System query option to set custom on-demand criteria to condition the results of the resource requested
+
+         **Comparison Operators**
+
+          Operator | Description         | Example
+          -------- | ------------------- | -------
+          eq     | Equal                 | **$filter**=title **eq** Project Test
+          ne     | Not Equal             | **$filter**=year **ne** Planned
+          gt     | Greater than          | **$filter**=rating **gt** 06-22-2019
+          ge     | Greater than or equal | **$filter**=year **ge*8 06-22-2021
+          lt     | Less than             | **$filter**=price **lt** 100000
+          le     | Less than or equal    | **$filter**=EventYear **le** 2019
+
+
+        **Logical Operators** (comming soon)
+
+          Operator | Description    | Example
+          -------- | -------------- | -------
+          and    | Logical and      | **$filter**=status **eq** Active **and** startDate **gt** 01-01-2020
+          or     | Logical or       | **$filter**=status **eq** Active **or** Status **ne** Planned
+
+          **Filter Considerations**
+
+          * Filter can not be used con other request parameters, it will ignore all others
+
+          * If filter fails you won't get an error, it will return everything
+
+        <p style="color: #8a6d3b;background-color: #fcf8e3;padding: 5px">
+          <b>Note</b>: look up for fields in the response structure  with the description of <b><span style="color:red">$filter available</span></b>,
+          those are the available fields to use
+        </p>
+
+responses:
+  unauthorized:
+    description: Unauthorized
+    schema:
+      $ref: "#/definitions/error-response"
+  invalid-request:
+    description: Invalid request
+    schema:
+      $ref: "#/definitions/error-response"
+  forbidden:
+    description: Insufficient privilege to execute action
+    schema:
+      $ref: "#/definitions/error-response"
+  not-found:
+    description: Not found
+    schema:
+      $ref: "#/definitions/error-response"
+  conflict:
+    description: Duplicate Resource
+    schema:
+      $ref: "#/definitions/error-response"

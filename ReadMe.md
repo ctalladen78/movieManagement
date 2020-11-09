@@ -1,0 +1,1 @@
+https://github.com/anmousyon/go-imdb/blob/master/README.md

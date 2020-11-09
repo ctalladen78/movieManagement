@@ -1,0 +1,211 @@
+version: 2.1
+
+environment:
+  BASH_ENV: ~/.bashrc
+
+set_deployment_environment: &set_deployment_environment
+  run:
+    name: set deployment environment
+    command: |
+      cd && echo "Setting environment in $BASH_ENV for stage ${CURRENT_STAGE}" && touch $BASH_ENV
+
+      declare -n key="MOVIE_SERVICE_HCDB_${CURRENT_STAGE}"
+      echo "export MOVIE_SERVICE_HCDB=${key}" >> $BASH_ENV
+
+      declare -n key="MOVIE_SERVICE_LOG_LEVEL_${CURRENT_STAGE}"
+      echo "export MOVIE_SERVICE_LOG_LEVEL${key}" >> $BASH_ENV
+
+      declare -n key="MOVIE_SERVICE_LOG_FORMAT_${CURRENT_STAGE}"
+      echo "export MOVIE_SERVICE_LOG_FORMAT=${key}" >> $BASH_ENV
+
+jobs:
+  build:
+    docker:
+      - image: circleci/golang:1.12-node
+    working_directory: /go/src/github.com/movieManagement
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cache
+          keys:
+            - dep-packages-{{ checksum "Gopkg.lock" }}
+      - run:
+          name: Setup Dependencies
+          command: make setup
+      - add_ssh_keys:
+          fingerprints:
+            - "aa:a4:6b:7e:51:9c:31:a3:10:5a:43:e2:e4:87:b7:c0"
+      - run:
+          name: Download dependencies
+          command: dep ensure -v
+      - run:
+          name: Swagger Code Generation
+          command: make swagger
+      - run:
+          name: Build
+          command: make build
+      - run:
+          name: Test
+          command: make test
+      - run:
+          name: Lint
+          command: make lint
+      - save_cache:
+          name: Save Dep Cache
+          key: dep-packages-{{ checksum "Gopkg.lock" }}
+          paths:
+            - vendor
+            - node_modules
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - bin
+            - node_modules
+
+  deploy_dev:
+    docker:
+      - image: circleci/node:12.17
+    working_directory: /tmp/movieManagement-dev
+    environment:
+      CURRENT_STAGE: DEV
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - *set_deployment_environment
+      - run:
+          name: Install dep
+          command: yarn install
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+      - run:
+          name: Install AWS Profile
+          command: ./scripts/install-aws-profile.sh us-east-2 dev
+      - attach_workspace:
+          at: ./
+      - run:
+          name: Deploy
+          command: |
+            echo "HOME directory    : ${HOME}"
+            echo "Current directory : `pwd`"
+            SLS_DEBUG=* yarn sls deploy --verbose --aws-profile movieManagement --stage dev --region us-east-2
+
+  deploy_staging:
+    docker:
+      - image: circleci/node:12.17
+    working_directory: /tmp/movieManagement-staging
+    environment:
+      CURRENT_STAGE: STAGING
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - *set_deployment_environment
+      - run:
+          name: Install dep
+          command: yarn install
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+      - run:
+          name: Install AWS Profile
+          command: ./scripts/install-aws-profile.sh us-east-2 staging
+      - attach_workspace:
+          at: ./
+      - run:
+          name: Deploy
+          command: |
+            echo "HOME directory    : ${HOME}"
+            echo "Current directory : `pwd`"
+            SLS_DEBUG=* yarn sls deploy --verbose --aws-profile movieManagement --stage staging --region us-east-2
+
+  deploy_prod:
+    docker:
+      - image: circleci/node:12.17
+    working_directory: /tmp/movieManagement-prod
+    environment:
+      CURRENT_STAGE: PROD
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Cache
+          keys:
+            - yarn-packages-{{ checksum "yarn.lock" }}
+      - *set_deployment_environment
+      - run:
+          name: Install dep
+          command: yarn install
+      - save_cache:
+          name: Save Yarn Package Cache
+          key: yarn-packages-{{ checksum "yarn.lock" }}
+          paths:
+            - ~/.cache/yarn
+      - run:
+          name: Install AWS Profile
+          command: ./scripts/install-aws-profile.sh us-east-2 prod
+      - attach_workspace:
+          at: ./
+      - run:
+          name: Deploy Services
+          command: |
+            echo "Current directory: `pwd`"
+            SLS_DEBUG=* yarn sls deploy --verbose --aws-profile movieManagement --stage prod --region us-east-2
+
+workflows:
+  version: 2.1
+  build_and deploy:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - deploy_dev:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
+      - approve_staging:
+          type: approval
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy_staging:
+          requires:
+            - approve_staging
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - approve_prod:
+          type: approval
+          requires:
+            - build
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+      - deploy_prod:
+          requires:
+            - approve_prod
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/

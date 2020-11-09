@@ -1,0 +1,59 @@
+service: movie-management-service
+
+frameworkVersion: ">= 1.28.0 < 2.0.0"
+
+plugins:
+  - serverless-prune-plugin
+
+provider:
+  name: aws
+  runtime: go1.x
+  profile: movie-management-service
+  stage: ${opt:stage} # dev, test, staging, or prod
+  region: us-east-2
+  timeout: 900 # optional, in seconds, default is 6
+  logRetentionInDays: 14
+  tags:
+    ServiceType: RestAPI
+    ProgrammingPlatform: Go
+    ServiceRole: Backend
+    Owner: RinkeshBhutwala
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cloudwatch:*
+      Resource: "*"
+
+  environment:
+    STAGE: ${self:provider.stage}
+    MOVIE_SERVICE_STAGE: ${self:provider.stage}
+    # DB 
+    MOVIE_SERVICE_HCDB: ${env:MOVIE_SERVICE_HCDB}
+
+stackTags:
+    stage: ${self:provider.stage}
+    project: ${self:custom.project}
+
+custom:
+  version: v1
+  project: movie-management-service
+  tags:
+    - Key: STAGE
+      Value: ${self:provider.stage}
+    - Key: SERVICE
+      Value: ${self:service}
+  prune:
+    automatic: true
+    number: 3
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/movie-service
+
+functions:
+  MOVIE:
+    name: movie-management-service-handler
+    description: Starts the MOVIE service
+    handler: ./bin/movie-service

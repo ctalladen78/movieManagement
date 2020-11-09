@@ -1,0 +1,16 @@
+# Ignore the generated folder
+gen/
+# Ignore IDE project files
+.vscode/
+*.iml
+.idea/
+
+# Ignore binaries
+bin/**
+
+# Ignore vendor folder
+vendor
+node_modules
+
+# Ignore test reports
+cover.out
